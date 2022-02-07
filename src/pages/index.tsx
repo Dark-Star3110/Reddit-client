@@ -1,56 +1,101 @@
 import {
-  Link as ChakraLink,
+  Box,
+  Button,
+  Flex,
+  Heading,
+  Link,
+  Spinner,
+  Stack,
   Text,
-  Code,
-  List,
-  ListIcon,
-  ListItem,
-} from '@chakra-ui/react'
-import { CheckCircleIcon, LinkIcon } from '@chakra-ui/icons'
+} from "@chakra-ui/react";
+import { PostsDocument, usePostsQuery } from "../generated/graphql";
+import { addApolloState, initializeApollo } from "../lib/apolloClient";
+import NextLink from "next/link";
+import Layout from "../components/Layout";
+import PostEditDeleteButton from "../components/PostEditDeleteButton";
+import { NetworkStatus } from "@apollo/client";
+import VotePostSection from "../components/VotePostSection";
+import { GetServerSideProps, GetServerSidePropsContext } from "next";
 
-import { Hero } from '../components/Hero'
-import { Container } from '../components/Container'
-import { Main } from '../components/Main'
-import { DarkModeSwitch } from '../components/DarkModeSwitch'
-import { CTA } from '../components/CTA'
-import { Footer } from '../components/Footer'
+const limit = 3;
 
-const Index = () => (
-  <Container height="100vh">
-    <Hero />
-    <Main>
-      <Text>
-        Example repository of <Code>Next.js</Code> + <Code>chakra-ui</Code> +{' '}
-        <Code>TypeScript</Code>.
-      </Text>
+const Index = () => {
+  const { data, loading, fetchMore, networkStatus } = usePostsQuery({
+    variables: {
+      limit,
+    },
+    notifyOnNetworkStatusChange: true, //components nao co render boi post query nay se dc rerender khi networkStatus thay doi, tuc la fetchMore
+  });
 
-      <List spacing={3} my={0}>
-        <ListItem>
-          <ListIcon as={CheckCircleIcon} color="green.500" />
-          <ChakraLink
-            isExternal
-            href="https://chakra-ui.com"
-            flexGrow={1}
-            mr={2}
+  const loadingMorePosts = networkStatus === NetworkStatus.fetchMore;
+
+  const loadMore = () =>
+    fetchMore({ variables: { limit, cursor: data?.posts?.cursor } });
+
+  return (
+    <Layout>
+      {loading && !loadingMorePosts ? (
+        <Flex justifyContent="center" alignItems="center" minHeight="100vh">
+          <Spinner />
+        </Flex>
+      ) : (
+        <Stack spacing={8}>
+          {data?.posts?.paginatedPosts.map((post) => (
+            <Flex key={post.id} p={5} shadow="md" borderWidth="1px">
+              <VotePostSection post={post} />
+              <Box flex={1}>
+                <NextLink href={`/post/${post.id}`}>
+                  <Link>
+                    <Heading fontSize="xl">{post.title}</Heading>
+                  </Link>
+                </NextLink>
+                <Text color="tomato">posted by {post.user.username}</Text>
+                <Flex align="center">
+                  <Text mt={4}>{post.textSnippet}</Text>
+                  <Box ml="auto">
+                    <PostEditDeleteButton
+                      postId={post.id}
+                      postUserId={post.user.id}
+                    />
+                  </Box>
+                </Flex>
+              </Box>
+            </Flex>
+          ))}
+        </Stack>
+      )}
+
+      {data?.posts?.hasMore && (
+        <Flex>
+          <Button
+            m="auto"
+            my={8}
+            isLoading={loadingMorePosts}
+            onClick={loadMore}
           >
-            Chakra UI <LinkIcon />
-          </ChakraLink>
-        </ListItem>
-        <ListItem>
-          <ListIcon as={CheckCircleIcon} color="green.500" />
-          <ChakraLink isExternal href="https://nextjs.org" flexGrow={1} mr={2}>
-            Next.js <LinkIcon />
-          </ChakraLink>
-        </ListItem>
-      </List>
-    </Main>
+            {loadingMorePosts ? "Loading" : "Show More"}
+          </Button>
+        </Flex>
+      )}
+    </Layout>
+  );
+};
 
-    <DarkModeSwitch />
-    <Footer>
-      <Text>Next ❤️ Chakra</Text>
-    </Footer>
-    <CTA />
-  </Container>
-)
+export const getServerSideProps: GetServerSideProps = async (
+  context: GetServerSidePropsContext
+) => {
+  const apolloClient = initializeApollo({ headers: context.req.headers });
 
-export default Index
+  await apolloClient.query({
+    query: PostsDocument,
+    variables: {
+      limit,
+    },
+  });
+
+  return addApolloState(apolloClient, {
+    props: {},
+  });
+};
+
+export default Index;
