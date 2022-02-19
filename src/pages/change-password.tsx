@@ -29,7 +29,7 @@ const ChangePassword = () => {
   const initialValues = { newPassword: "" };
   const [tokenError, setTokenError] = useState("");
 
-  const [changePassword, { loading }] = useChangePasswordMutation();
+  const [changePassword] = useChangePasswordMutation();
   const onChangePasswordSubmit = async (
     value: ChangePasswordInput,
     { setErrors }: FormikHelpers<ChangePasswordInput>

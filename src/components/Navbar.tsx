@@ -9,7 +9,7 @@ import {
 } from "../generated/graphql";
 
 const Navbar = () => {
-  const { data, loading: useMeQueryLoading, error } = useMeQuery();
+  const { data, loading: useMeQueryLoading } = useMeQuery();
 
   const [logout, { loading: useLogoutLoading }] = useLogoutMutation();
 
